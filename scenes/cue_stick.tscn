@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://2jv04aoxr57h"]
+
+[ext_resource type="Script" uid="uid://c8g5r8nby4gbr" path="res://scripts/cue_stick.gd" id="1_cue_stick"]
+[ext_resource type="Texture2D" uid="uid://diex5cggwnxpa" path="res://assets/sprites/cue.svg" id="2_cue"]
+
+[node name="CueStick" type="Node2D"]
+script = ExtResource("1_cue_stick")
+
+[node name="StickSprite" type="Sprite2D" parent="."]
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("2_cue")
+
+[node name="AimLine" type="Line2D" parent="."]
+width = 2.0
+default_color = Color(1, 1, 1, 0.5)

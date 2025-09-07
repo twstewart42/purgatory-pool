@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cwbrmg5gjcdn1"]
+
+[ext_resource type="Texture2D" uid="uid://c000w33tlqten" path="res://assets/sprites/cue_ball.svg" id="1_y0eb4"]
+
+[node name="Queue" type="Sprite2D"]
+texture = ExtResource("1_y0eb4")

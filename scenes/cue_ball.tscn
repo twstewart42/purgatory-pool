@@ -1,0 +1,16 @@
+[gd_scene load_steps=4 format=3 uid="uid://bye3eq5v2il6b"]
+
+[ext_resource type="Texture2D" uid="uid://c000w33tlqten" path="res://assets/sprites/cue_ball.svg" id="1_it4ph"]
+[ext_resource type="PhysicsMaterial" uid="uid://kr3p2ql81l33" path="res://assets/materials/ball_physics_material.tres" id="1_tbouf"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_c01jm"]
+radius = 15.1327
+
+[node name="cue" type="RigidBody2D"]
+physics_material_override = ExtResource("1_tbouf")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_it4ph")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_c01jm")

@@ -1,0 +1,131 @@
+[gd_scene load_steps=2 format=3 uid="uid://bwxmm5rjpcupr"]
+
+[ext_resource type="Script" uid="uid://dg78eq6jq7tk" path="res://scripts/ui.gd" id="1_ui"]
+
+[node name="UI" type="CanvasLayer"]
+script = ExtResource("1_ui")
+
+[node name="ScoreBackground" type="ColorRect" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -310.0
+offset_right = -10.0
+offset_bottom = 110.0
+color = Color(0, 0, 0, 0.5)
+
+[node name="ScoreBox" type="HBoxContainer" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -300.0
+offset_top = 10.0
+offset_right = -20.0
+offset_bottom = 100.0
+
+[node name="Player1Score" type="Control" parent="ScoreBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Player1Highlight" type="ColorRect" parent="ScoreBox/Player1Score"]
+z_index = -1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 1, 0, 0.3)
+
+[node name="Player1Container" type="VBoxContainer" parent="ScoreBox/Player1Score"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Player1Label" type="Label" parent="ScoreBox/Player1Score/Player1Container"]
+layout_mode = 2
+text = "Player 1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Player1ScoreLabel" type="Label" parent="ScoreBox/Player1Score/Player1Container"]
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+text = "0"
+horizontal_alignment = 1
+
+[node name="Player2Score" type="Control" parent="ScoreBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Player2Highlight" type="ColorRect" parent="ScoreBox/Player2Score"]
+visible = false
+z_index = -1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 1, 0, 0.3)
+
+[node name="Player2Container" type="VBoxContainer" parent="ScoreBox/Player2Score"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Player2Label" type="Label" parent="ScoreBox/Player2Score/Player2Container"]
+layout_mode = 2
+text = "Player 2"
+horizontal_alignment = 1
+
+[node name="Player2ScoreLabel" type="Label" parent="ScoreBox/Player2Score/Player2Container"]
+layout_mode = 2
+text = "0"
+horizontal_alignment = 1
+
+[node name="PowerIndicator" type="Panel" parent="."]
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_top = -12.5
+offset_right = 190.0
+offset_bottom = 12.5
+grow_vertical = 2
+
+[node name="PowerIndicator_PowerBarBackground#PowerBar" type="ColorRect" parent="PowerIndicator"]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_top = -12.5
+offset_right = 6.0
+offset_bottom = 12.5
+grow_vertical = 2
+color = Color(0, 1, 0, 1)
+
+[node name="PowerDisplay" type="HBoxContainer" parent="PowerIndicator"]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_top = -20.0
+offset_right = 84.0
+offset_bottom = 20.0
+grow_vertical = 2
+
+[node name="PowerIndicator#PowerLabel" type="Label" parent="PowerIndicator/PowerDisplay"]
+layout_mode = 2
+text = "POWER"
+horizontal_alignment = 1
+
+[node name="PowerIndicator#PowerText" type="Label" parent="PowerIndicator/PowerDisplay"]
+layout_mode = 2
+text = "0%"
+horizontal_alignment = 1

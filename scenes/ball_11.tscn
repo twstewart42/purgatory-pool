@@ -1,0 +1,65 @@
+[gd_scene load_steps=10 format=3 uid="uid://blnweo4uc2vxg"]
+
+[ext_resource type="PhysicsMaterial" uid="uid://kr3p2ql81l33" path="res://assets/materials/ball_physics_material.tres" id="1_25dgc"]
+[ext_resource type="Script" uid="uid://viobodrcl8ty" path="res://scripts/ball.gd" id="1_ball"]
+[ext_resource type="Texture2D" uid="uid://dlj7i1v21n5uc" path="res://assets/sprites/ball_11.svg" id="2_25dgc"]
+[ext_resource type="Texture2D" uid="uid://bs7ns6ppdeowe" path="res://assets/sprites/balls_sprites.png" id="2_sprites"]
+[ext_resource type="FontFile" uid="uid://cdsq1uassr8uw" path="res://assets/Fonts/PixelOperator8.ttf" id="3_rsybe"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_s4skw"]
+atlas = ExtResource("2_sprites")
+region = Rect2(0, 160, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ml8u3"]
+atlas = ExtResource("2_sprites")
+region = Rect2(32, 160, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_ball11"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_s4skw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ml8u3")
+}],
+"loop": true,
+"name": &"default",
+"speed": 10.0
+}]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_c01jm"]
+radius = 15.1327
+
+[node name="ball_11" type="RigidBody2D"]
+physics_material_override = ExtResource("1_25dgc")
+script = ExtResource("1_ball")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_ball11")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+visible = false
+texture = ExtResource("2_25dgc")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_c01jm")
+
+[node name="Label" type="Label" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -11.5
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("3_rsybe")
+text = "11"
+horizontal_alignment = 1
+vertical_alignment = 1

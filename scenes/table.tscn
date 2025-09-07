@@ -1,0 +1,117 @@
+[gd_scene load_steps=6 format=3 uid="uid://cw14reotykxwm"]
+
+[ext_resource type="Script" uid="uid://bhgrnhmb1klrv" path="res://scripts/table.gd" id="1_eotx8"]
+[ext_resource type="Texture2D" uid="uid://b8ix1ww8f4d85" path="res://assets/sprites/table_2.svg" id="2_x8522"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_olh0b"]
+radius = 32.0624
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_u03e6"]
+radius = 31.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_2f5gb"]
+radius = 27.0
+
+[node name="Table" type="Node2D"]
+script = ExtResource("1_eotx8")
+rail_bounce = null
+pocket_radius = null
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Sprite2D" type="Sprite2D" parent="CenterContainer"]
+position = Vector2(930, 528)
+texture = ExtResource("2_x8522")
+
+[node name="Rails" type="Node2D" parent="."]
+
+[node name="TopLeftRail" type="StaticBody2D" parent="Rails"]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Rails/TopLeftRail"]
+position = Vector2(0.120422, -1.52588e-05)
+scale = Vector2(0.999584, 1)
+polygon = PackedVector2Array(430, 186, 425, 241, 445, 260, 867, 260, 876, 240, 876, 187)
+
+[node name="TopRightRail" type="StaticBody2D" parent="Rails"]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Rails/TopRightRail"]
+position = Vector2(506, 0)
+scale = Vector2(0.999584, 1)
+polygon = PackedVector2Array(427.178, 186, 425.177, 240, 433.18, 260, 861.358, 261, 880.366, 241, 881.366, 186)
+
+[node name="BottomLeftRail" type="StaticBody2D" parent="Rails"]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Rails/BottomLeftRail"]
+polygon = PackedVector2Array(442, 761, 424, 777, 421, 829, 875, 829, 877, 776, 869, 760)
+
+[node name="BottomRightRail" type="StaticBody2D" parent="Rails"]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Rails/BottomRightRail"]
+polygon = PackedVector2Array(937, 760, 931, 778, 930, 830, 1388, 829, 1387, 777, 1370, 761)
+
+[node name="SideRightRail" type="StaticBody2D" parent="Rails"]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Rails/SideRightRail"]
+polygon = PackedVector2Array(1408, 720, 1426, 739, 1426, 276, 1408, 295)
+
+[node name="SideLeftRail" type="StaticBody2D" parent="Rails"]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Rails/SideLeftRail"]
+polygon = PackedVector2Array(394, 738, 411, 721, 410, 293, 394, 278)
+
+[node name="Pockets" type="Node2D" parent="."]
+
+[node name="TopLeftPocket" type="Area2D" parent="Pockets"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pockets/TopLeftPocket"]
+position = Vector2(395, 248)
+shape = SubResource("CircleShape2D_olh0b")
+
+[node name="TopRightPocket" type="Area2D" parent="Pockets"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pockets/TopRightPocket"]
+position = Vector2(1418, 246)
+shape = SubResource("CircleShape2D_u03e6")
+
+[node name="TopMidPocket" type="Area2D" parent="Pockets"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pockets/TopMidPocket"]
+position = Vector2(904, 233)
+shape = SubResource("CircleShape2D_2f5gb")
+
+[node name="BottomLeftPocket" type="Area2D" parent="Pockets"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pockets/BottomLeftPocket"]
+position = Vector2(395, 772)
+shape = SubResource("CircleShape2D_olh0b")
+
+[node name="BottomRightPocket" type="Area2D" parent="Pockets"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pockets/BottomRightPocket"]
+position = Vector2(1418, 772)
+shape = SubResource("CircleShape2D_u03e6")
+
+[node name="BottomMidPocket" type="Area2D" parent="Pockets"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pockets/BottomMidPocket"]
+position = Vector2(904, 782)
+shape = SubResource("CircleShape2D_2f5gb")
+
+[node name="BallSpawnPoints" type="Node2D" parent="."]
+
+[node name="CueBallSpawn" type="Marker2D" parent="BallSpawnPoints"]
+position = Vector2(580, 510)
+
+[node name="RackPosition" type="Marker2D" parent="BallSpawnPoints"]
+position = Vector2(1200, 510)
