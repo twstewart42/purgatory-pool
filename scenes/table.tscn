@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://cw14reotykxwm"]
 
 [ext_resource type="Script" uid="uid://bhgrnhmb1klrv" path="res://scripts/table.gd" id="1_eotx8"]
-[ext_resource type="Texture2D" uid="uid://b8ix1ww8f4d85" path="res://assets/sprites/table_2.svg" id="2_x8522"]
+[ext_resource type="Texture2D" uid="uid://ks3sa5ms0if" path="res://assets/sprites/table_mood.svg" id="2_eotx8"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_olh0b"]
 radius = 32.0624
@@ -32,7 +32,7 @@ grow_vertical = 2
 
 [node name="Sprite2D" type="Sprite2D" parent="CenterContainer"]
 position = Vector2(930, 528)
-texture = ExtResource("2_x8522")
+texture = ExtResource("2_eotx8")
 
 [node name="Rails" type="Node2D" parent="."]
 

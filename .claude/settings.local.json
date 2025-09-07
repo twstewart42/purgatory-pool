@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/game_dev/billiards_unused/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

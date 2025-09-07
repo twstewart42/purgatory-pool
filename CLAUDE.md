@@ -83,7 +83,8 @@ Game (main scene) - Node2D
 
 **Win/Loss Conditions**:
 - Modular condition system using Callable arrays
-- Current rules: 8+ balls pocketed wins, 1 scratch loses
+- Current rules: 8+ balls pocketed wins, 3 scratches loses, early 8-ball pocketing loses
+- Early 8-ball rule: Pocketing the 8-ball before clearing all other balls results in immediate loss
 - Easily extensible for different game rule sets
 
 **CPU AI**:

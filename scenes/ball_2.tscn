@@ -2,7 +2,7 @@
 
 [ext_resource type="PhysicsMaterial" uid="uid://kr3p2ql81l33" path="res://assets/materials/ball_physics_material.tres" id="1_3umpd"]
 [ext_resource type="Script" uid="uid://viobodrcl8ty" path="res://scripts/ball.gd" id="1_ball"]
-[ext_resource type="Texture2D" uid="uid://ftul5ufqcdkl" path="res://assets/sprites/ball_2.svg" id="2_3umpd"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ball_2.svg" id="2_3umpd"]
 [ext_resource type="Texture2D" uid="uid://bs7ns6ppdeowe" path="res://assets/sprites/balls_sprites.png" id="2_sprites"]
 [ext_resource type="FontFile" uid="uid://cdsq1uassr8uw" path="res://assets/Fonts/PixelOperator8.ttf" id="3_pgaf7"]
 
