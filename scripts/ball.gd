@@ -7,6 +7,9 @@ var last_velocity = Vector2.ZERO
 var use_smooth_rotation = true  # Enable smooth rotation instead of frame animation
 var rotation_accumulator = 0.0
 
+# Audio collision detection
+signal ball_collision(collision_velocity: float)
+
 func _ready():
     if use_smooth_rotation:
         # For smooth rotation, keep the sprite on the first frame
@@ -16,6 +19,11 @@ func _ready():
         # For frame animation
         animated_sprite.stop()
         animated_sprite.frame = 0
+    
+    # Enable contact monitoring for collision detection
+    contact_monitor = true
+    max_contacts_reported = 10
+    body_entered.connect(_on_collision)
 
 func _physics_process(delta):
     var current_velocity = linear_velocity
@@ -78,3 +86,10 @@ func start_rolling_animation():
 func stop_rolling_animation():
     animated_sprite.stop()
     animated_sprite.frame = 0  # Reset to first frame when stopped
+
+func _on_collision(body: Node):
+    if body.is_in_group("balls"):
+        # Calculate collision velocity for sound intensity
+        var collision_velocity = linear_velocity.length()
+        if collision_velocity > 50.0:  # Only play sound for significant collisions
+            ball_collision.emit(collision_velocity)

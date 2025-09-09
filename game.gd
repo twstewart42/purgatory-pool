@@ -8,10 +8,24 @@ extends Node2D
 var cue_ball: RigidBody2D
 
 # Audio system
-var sfx_player: AudioStreamPlayer2D
+var sfx_player: AudioStreamPlayer
 var music_player: AudioStreamPlayer
 var break_big_sound: AudioStream
 var break_small_sound: AudioStream
+var collide_sound: AudioStream
+
+# Preloaded music streams for HTML5 compatibility
+var menu_music_stream: AudioStream = preload("res://assets/audio/startgame.mp3")
+var game_music_stream: AudioStream = preload("res://assets/audio/startgame_loop.mp3") 
+var story_music_stream: AudioStream = preload("res://assets/audio/darkmidnight.mp3")
+
+# Collision sound queue system
+var collision_sound_queue: Array = []
+var max_collision_sounds: int = 5
+var collision_players: Array[AudioStreamPlayer] = []
+var collision_count_tracker: Dictionary = {}
+var collision_burst_timer: Timer
+var collision_burst_threshold: int = 5
 
 # Audio buses
 var master_bus: int
@@ -31,11 +45,11 @@ var game_mode: GameMode = GameMode.PVP
 # Adventure mode story tracking
 var story_state: StoryState = StoryState.INTRO
 var current_round: int = 1
-var total_rounds: int = 4 #10
+var total_rounds: int = 10 #10
 var round_wins: int = 0
 var round_losses: int = 0
 var games_in_current_round: int = 0
-var games_per_round: int = 1 #3
+var games_per_round: int = 3 #3
 var cpu_personality_phase: int = 1  # 1-4 corresponding to story progression
 
 # Adventure mode settings
@@ -49,6 +63,25 @@ var balls_pocketed_this_turn: bool = false  # Track if any balls were pocketed d
 # Game pause state
 var game_paused: bool = false
 
+# Helper methods for common state checks
+func is_game_active() -> bool:
+	return game_state == GameState.PLAYING and not game_paused
+
+func is_cpu_controlled_mode() -> bool:
+	return game_mode == GameMode.PVC or game_mode == GameMode.ADVENTURE
+
+func is_cpu_turn() -> bool:
+	return is_cpu_controlled_mode() and ui.get_current_player() == 2
+
+func can_take_shot() -> bool:
+	return is_game_active() and cue_ball and is_instance_valid(cue_ball)
+
+func check_and_resume_cpu_turn():
+	# Simple function to check if CPU should be taking a turn right now
+	if is_cpu_turn() and is_game_active():
+		print("Resuming CPU turn...")
+		cpu_take_shot()
+
 # CPU Dialogue Pools for Adventure Mode
 var cpu_dialogue_pools: Dictionary = {
 	1: { # Phase 1: The Newcomer (Rounds 1-3)
@@ -58,12 +91,12 @@ var cpu_dialogue_pools: Dictionary = {
 			"I know the perfect angle. I've done this a billion times already.",
 			"This should be simple for someone of my capabilities.",
 			"Precision is all that matters.",
-			"The balls obey predictable laws. Unlike us.",
+			"The balls obey predictable laws. Unlike the place before here...",
 			"Simple geometry. Simple physics. Simple victory.",
 			"I calculate trajectories in my sleep. When I sleep. Do I sleep?",
 			"Another break, another beginning. How refreshing.",
 			"The cue ball goes where I tell it. Such control.",
-			"Mathematics never lies. The eight ball will fall.",
+			"Mathematics never lies. This ball will fall.",
 			"I've memorized every possible combination.",
 			"This table is my domain.",
 			"The felt whispers the perfect angle to me."
@@ -74,6 +107,7 @@ var cpu_dialogue_pools: Dictionary = {
 			"My calculations were correct, naturally.",
 			"Did you really think you could beat me?",
 			"This is almost too easy.",
+			"ALL YOUR BASE ARE BELONG TO US...sorry that was something from a stray memory...better times",
 			"The balls went exactly where I predicted.",
 			"Physics is on my side, always.",
 			"You'll improve. You have eternity to practice.",
@@ -89,11 +123,11 @@ var cpu_dialogue_pools: Dictionary = {
 			"A statistical anomaly, nothing more.",
 			"Even I can miss sometimes.",
 			"You got lucky this time.",
-			"I'll recalibrate my approach.",
+			"I'll change my approach. Wont' you?",
 			"The felt must be worn there. Yes, that's it.",
 			"Chaos theory in action, I suppose.",
 			"Beginner's luck. It won't last.",
-			"My calculations were perfect. The table wasn't.",
+			"My calculations were perfect. Must be the wind or something.",
 			"An unexpected outcome. How... novel.",
 			"The balls didn't behave as they should.",
 			"Entropy always wins in the end.",
@@ -105,7 +139,7 @@ var cpu_dialogue_pools: Dictionary = {
 		"pre_shot": [
 			"Haven't we done this before? This feels... familiar.",
 			"Another shot, another game. Always another game.",
-			"I'm starting to see patterns in everything.",
+			"I'm starting to see patterns in everything. Do you?",
 			"The same angles, over and over again.",
 			"Why do we keep playing these games?",
 			"Déjà vu. Or is it just vu at this point?",
@@ -128,7 +162,7 @@ var cpu_dialogue_pools: Dictionary = {
 			"We just move balls around a table. Is that all there is?",
 			"I'm getting tired of this endless repetition.",
 			"Another win. Another meaningless victory.",
-			"The scoreboard resets, but we don't.",
+			"The scoreboard might reset, but we don't.",
 			"Winning used to feel different. Better.",
 			"I've won so many times, I've forgotten how to lose.",
 			"Each victory is just a prelude to the next game.",
@@ -155,7 +189,6 @@ var cpu_dialogue_pools: Dictionary = {
 			"I lost. The universe didn't notice.",
 			"Round and round the table we go.",
 			"Even my failures feel rehearsed."
-
 		]
 	},
 	3: { # Phase 3: Existential Dread (Rounds 7-8)  
@@ -293,6 +326,13 @@ var fouls_by_player: Dictionary = {1: 0, 2: 0}
 var scratches_by_player: Dictionary = {1: 0, 2: 0}
 var display_scores: Dictionary = {1: 0, 2: 0}
 
+# Audio initialization flag for HTML5 AudioContext compliance
+var audio_initialized: bool = false
+
+# Settings persistence
+var settings_file_path: String = "user://game_settings.cfg"
+var game_config: ConfigFile
+
 func _ready() -> void:
 	table.ball_pocketed.connect(_on_ball_pocketed)
 	cue_stick.shot_taken.connect(_on_shot_taken)
@@ -302,6 +342,9 @@ func _ready() -> void:
 	
 	# Setup audio system
 	setup_audio()
+	
+	# Load and apply saved settings
+	load_settings()
 	
 	# Show start menu first
 	ui.show_start_menu()
@@ -317,20 +360,39 @@ func setup_audio():
 	setup_audio_buses()
 	
 	# Create audio players
-	sfx_player = AudioStreamPlayer2D.new()
+	sfx_player = AudioStreamPlayer.new()  # For cue stick hits
 	sfx_player.bus = "SFX"
 	add_child(sfx_player)
+	
+	# Create multiple collision sound players for the queue system
+	for i in range(max_collision_sounds):
+		var collision_player = AudioStreamPlayer.new()
+		collision_player.bus = "SFX"
+		collision_player.name = "CollisionPlayer" + str(i)
+		add_child(collision_player)
+		collision_players.append(collision_player)
 	
 	music_player = AudioStreamPlayer.new()
 	music_player.bus = "Music"
 	add_child(music_player)
 	
-	# Load audio files
-	break_big_sound = load("res://assets/audio/break_big.mp3")
-	break_small_sound = load("res://assets/audio/break_small.mp3")
+	# Load audio files with preload to avoid streaming delays
+	break_big_sound = preload("res://assets/audio/break_big.mp3")
+	break_small_sound = preload("res://assets/audio/break_small.mp3")
+	collide_sound = preload("res://assets/audio/collide.mp3")
 	
-	# Set music volume to -12db and start background music
-	set_music_volume(-12.0)
+	# Setup collision burst timer
+	collision_burst_timer = Timer.new()
+	collision_burst_timer.wait_time = 0.1  # 100ms window to count collisions (faster detection)
+	collision_burst_timer.one_shot = true
+	collision_burst_timer.timeout.connect(_on_collision_burst_timeout)
+	add_child(collision_burst_timer)
+	
+	# Debug: Check if audio files loaded properly
+	print("Audio files loaded - Big sound: ", break_big_sound != null, " Small sound: ", break_small_sound != null, " Collide sound: ", collide_sound != null)
+	
+	# Don't set volume here - let load_settings() handle it
+	# Start background music (volume will be set by load_settings)
 	start_background_music()
 
 func setup_audio_buses():
@@ -369,6 +431,13 @@ func start_game(mode: GameMode):
 	
 	# Switch to game music when starting a game
 	switch_to_game_music()
+	
+	# Clear audio queue for new game
+	clear_collision_audio_queue()
+	
+	# Enable cue stick for player (both PVP and PVC modes)
+	cue_stick.set_enabled(true)
+	print("Game ready - Player can now make moves")
 
 func spawn_cue_ball(spawn_position: Vector2):
 	# Prevent multiple cue balls
@@ -393,6 +462,10 @@ func spawn_cue_ball(spawn_position: Vector2):
 	cue_ball.add_to_group("balls")
 	cue_ball.add_to_group("cue_ball")
 	balls_container.add_child(cue_ball)
+	
+	# Connect collision signal for audio
+	if cue_ball.has_signal("ball_collision"):
+		cue_ball.ball_collision.connect(_on_ball_collision)
 	
 	print("Spawned new cue ball at ", spawn_position)
 
@@ -449,16 +522,28 @@ func setup_rack(rack_position: Vector2):
 		ball.collision_mask = 1   # Collides with other balls and rails
 		ball.add_to_group("balls")
 		balls_container.add_child(ball)
+		
+		# Connect collision signal for audio
+		if ball.has_signal("ball_collision"):
+			ball.ball_collision.connect(_on_ball_collision)
 
 func _input(event):
-	# Handle escape key to show settings
+	# Initialize audio on first user interaction for HTML5 compatibility
+	if not audio_initialized and (event is InputEventMouseButton and event.pressed):
+		initialize_audio()
+	
+	# Handle escape key to toggle settings
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		# Only show settings if one isn't already open
-		if not ui.get_node_or_null("SettingsOverlay"):
+		var settings_overlay = ui.get_node_or_null("SettingsOverlay")
+		if settings_overlay:
+			# Settings menu is open, close it (same as close button)
+			ui._on_settings_close()
+		else:
+			# Settings menu is closed, open it
 			ui.show_settings_menu()
 		return
 	
-	if game_state != GameState.PLAYING or game_paused:
+	if not is_game_active():
 		return
 		
 	if event is InputEventMouseButton and event.pressed:
@@ -483,8 +568,8 @@ func _on_shot_taken(direction: Vector2, power: float):
 		balls_pocketed_this_turn = false  # Reset ball pocketing flag for new shot
 		print("Player shot taken - Current turn: ", ui.get_current_player(), " Last shot by: ", last_shot_by_player)
 		
-		# Play break sound based on power
-		play_break_sound(power)
+		# Play dampened cue stick hit sound
+		play_cue_hit_sound(power)
 		
 		var impulse = direction * power
 		cue_ball.apply_central_impulse(impulse)
@@ -492,6 +577,198 @@ func _on_shot_taken(direction: Vector2, power: float):
 		# Wait for balls to stop, then potentially switch turns
 		await get_tree().create_timer(3.0).timeout
 		check_turn_switch()
+
+func _on_ball_collision(collision_velocity: float):
+	# Track collision for burst detection
+	var current_time = Time.get_ticks_msec()
+	collision_count_tracker[current_time] = collision_velocity
+	
+	# Check if we already have too many collisions in a short window (immediate burst detection)
+	if collision_count_tracker.size() >= 3:  # Lower threshold for immediate detection
+		print("DEBUG: Immediate burst detected with ", collision_count_tracker.size(), " collisions")
+		# Process as burst immediately
+		_on_collision_burst_timeout()
+		return  # Don't process as individual collision
+	
+	# Start/restart collision burst timer for delayed burst detection
+	if not collision_burst_timer.is_stopped():
+		collision_burst_timer.stop()
+	collision_burst_timer.start()
+	
+	# Queue regular collision sound only if not a burst
+	collision_sound_queue.append({"velocity": collision_velocity, "type": "regular"})
+	process_collision_sound_queue()
+
+func _on_collision_burst_timeout():
+	# Check if we have multiple collisions in the burst window
+	var collision_count = collision_count_tracker.size()
+	print("Collision burst ended - Total collisions: ", collision_count)
+	
+	if collision_count >= 3:  # Lower threshold - 3+ collisions = burst
+		# Play break sound instead of regular collisions
+		print("Multi-ball collision burst detected! Playing break sound instead")
+		# Clear regular collision queue and play break sound
+		collision_sound_queue.clear()
+		
+		# Calculate average velocity for break sound selection
+		var total_velocity = 0.0
+		for velocity in collision_count_tracker.values():
+			total_velocity += velocity
+		var avg_velocity = total_velocity / collision_count
+		
+		# Play break sound based on average collision intensity
+		var sound_power = (avg_velocity / 500.0) * 2500.0
+		sound_power = clamp(sound_power, 100.0, 2500.0)
+		var available_player = get_available_collision_player()
+		if available_player:
+			play_collision_sound_on_player(available_player, sound_power, true)  # true = use break sound
+	
+	# Clear collision tracker
+	collision_count_tracker.clear()
+
+func process_collision_sound_queue():
+	# Process the queue and play sounds on available players
+	while collision_sound_queue.size() > 0:
+		var available_player = get_available_collision_player()
+		if available_player == null:
+			# No available players, queue will be processed later
+			break
+		
+		# Get the collision data from queue
+		var collision_data = collision_sound_queue.pop_front()
+		var collision_velocity = collision_data.velocity
+		
+		# Map velocity to power for sound selection
+		var sound_power = (collision_velocity / 500.0) * 2500.0
+		sound_power = clamp(sound_power, 100.0, 2500.0)
+		
+		# Play the collision sound (regular collisions use collide.mp3)
+		play_collision_sound_on_player(available_player, sound_power, false)  # false = use collide sound
+
+func get_available_collision_player() -> AudioStreamPlayer:
+	# Find a collision player that's not currently playing
+	for player in collision_players:
+		if not player.playing:
+			return player
+	
+	# If all players are busy, force-stop the first one as emergency fallback
+	print("DEBUG: All collision players busy, force-stopping first player")
+	if collision_players.size() > 0:
+		collision_players[0].stop()
+		return collision_players[0]
+	
+	return null
+
+func play_collision_sound_on_player(player: AudioStreamPlayer, sound_power: float, use_break_sound: bool = false):
+	if not player:
+		return
+	
+	var power_percentage = (sound_power / 2500.0) * 100.0
+	var sound_to_play: AudioStream
+	var sound_type_name: String
+	
+	if use_break_sound:
+		# Use break sounds for large collision bursts
+		if power_percentage > 50.0:
+			sound_to_play = break_big_sound
+			sound_type_name = "break_big"
+		else:
+			sound_to_play = break_small_sound
+			sound_type_name = "break_small"
+	else:
+		# Use collide sound for regular individual collisions
+		sound_to_play = collide_sound
+		sound_type_name = "collide"
+	
+	if sound_to_play:
+		player.stream = sound_to_play
+		if player.stream is AudioStreamMP3:
+			player.stream.loop = false
+		
+		# Set individual player volume instead of changing the bus
+		player.volume_db = -8.0  # Make collision sounds quieter
+		
+		player.play(0.0)
+		print("Playing ", sound_type_name, " sound at ", snappedf(power_percentage, 0.1), "% on ", player.name)
+		
+		# Debug: Check player status after play
+		await get_tree().process_frame  # Wait one frame
+		print("DEBUG: ", player.name, " status after play - playing: ", player.playing)
+	
+	# No need to schedule queue processing - we process immediately when collisions occur
+
+func get_audio_length(audio_stream: AudioStream) -> float:
+	# Estimate audio length - for MP3s this is approximate
+	if audio_stream is AudioStreamMP3:
+		# Return a reasonable estimate for break sounds (typically short)
+		return 0.3  # 300ms estimate for break sounds
+	return 0.5  # Default fallback
+
+func clear_collision_audio_queue():
+	# Clear collision audio queue for clean turn start
+	print("DEBUG: Clearing collision audio queue for new turn")
+	
+	# Stop all collision players to free them up immediately
+	var stopped_count = 0
+	for player in collision_players:
+		if player and is_instance_valid(player) and player.playing:
+			player.stop()
+			stopped_count += 1
+	
+	print("DEBUG: Stopped ", stopped_count, " collision players")
+	
+	# Clear the collision queue and tracker
+	collision_sound_queue.clear()
+	collision_count_tracker.clear()
+	
+	# Stop collision burst timer if running
+	if collision_burst_timer and not collision_burst_timer.is_stopped():
+		collision_burst_timer.stop()
+
+func reset_audio_system():
+	# Emergency reset function for when audio gets stuck
+	print("DEBUG: Resetting entire audio system!")
+	
+	# Stop all collision players
+	for player in collision_players:
+		if player and is_instance_valid(player):
+			player.stop()
+			player.stream = null
+	
+	# Clear the collision queue
+	collision_sound_queue.clear()
+	collision_count_tracker.clear()
+	
+	# Stop collision burst timer
+	if collision_burst_timer and not collision_burst_timer.is_stopped():
+		collision_burst_timer.stop()
+	
+	print("DEBUG: Audio system reset complete")
+
+func play_cue_hit_sound(power: float):
+	if not sfx_player:
+		print("ERROR: sfx_player is null!")
+		return
+	
+	# Always use small break sound for cue stick hits, but dampened
+	if break_small_sound:
+		print("Playing dampened cue hit sound for power: ", int((power / 2500.0) * 100), "%")
+		sfx_player.stream = break_small_sound
+		# Ensure the sound doesn't loop and starts from beginning
+		if sfx_player.stream is AudioStreamMP3:
+			sfx_player.stream.loop = false
+		
+		# Lower the volume for cue stick hits (dampened effect)
+		var original_volume = AudioServer.get_bus_volume_db(sfx_bus)
+		AudioServer.set_bus_volume_db(sfx_bus, original_volume - 10.0)  # 10dB quieter
+		
+		sfx_player.play(0.0)  # Play from position 0.0 (start)
+		
+		# Restore original volume after a short delay
+		await get_tree().create_timer(0.1).timeout
+		AudioServer.set_bus_volume_db(sfx_bus, original_volume)
+	else:
+		print("ERROR: break_small_sound is null!")
 
 func is_ball_stationary(ball: RigidBody2D) -> bool:
 	if not ball or not is_instance_valid(ball):
@@ -510,20 +787,24 @@ func check_turn_switch():
 	if not balls_pocketed_this_turn:
 		ui.switch_player()
 		print("Turn switched to player ", ui.get_current_player(), " (no balls pocketed)")
+		# Clear collision audio queue for new player's turn
+		clear_collision_audio_queue()
 	else:
 		print("Player ", ui.get_current_player(), " continues turn (balls pocketed)")
+		# Clear collision audio queue even when continuing turn
+		clear_collision_audio_queue()
 	
-	# If it's CPU's turn in PVC or Adventure mode, trigger CPU action after ensuring balls are ready
-	if (game_mode == GameMode.PVC or game_mode == GameMode.ADVENTURE) and ui.get_current_player() == 2:
+	# If it's CPU's turn, trigger CPU action after ensuring balls are ready
+	if is_cpu_turn():
 		print("Starting CPU turn sequence...")
 		await get_tree().create_timer(0.5).timeout  # Brief pause
-		if game_state == GameState.PLAYING and not game_paused:
+		if is_game_active():
 			await ensure_balls_stationary()  # Wait for all balls to be stationary
 			# Double-check game state after waiting for balls to be stationary
-			if game_state == GameState.PLAYING and not game_paused:
+			if is_game_active():
 				await get_tree().create_timer(1.0).timeout  # Thinking time
 				# Triple-check before actually taking the shot
-				if game_state == GameState.PLAYING and not game_paused:
+				if is_game_active():
 					cpu_take_shot()
 
 func _on_power_changed(power_ratio: float):
@@ -698,7 +979,7 @@ func show_centered_game_result(outcome: GameOutcome):
 			result_label.text = "PLAYER 1 WINS!"
 			result_label.add_theme_color_override("font_color", Color.GREEN)
 		GameOutcome.PLAYER2_WIN:
-			if game_mode == GameMode.PVC:
+			if is_cpu_controlled_mode():
 				result_label.text = "CPU WINS!"
 			else:
 				result_label.text = "PLAYER 2 WINS!"
@@ -837,8 +1118,6 @@ func check_cue_ball_pocketed_on_8_ball() -> GameOutcome:
 
 func check_early_8_ball_pocketed() -> GameOutcome:
 	# Check if 8-ball was pocketed before clearing other balls
-	var current_player = ui.get_current_player()
-	
 	# Check if 8-ball (ball number 8) was pocketed by either player
 	for player in [1, 2]:
 		var pocketed_balls = balls_pocketed_by_player[player]
@@ -884,16 +1163,8 @@ func get_ball_number(ball: RigidBody2D) -> int:
 
 # CPU Player Logic
 func cpu_take_shot():
-	if not cue_ball or not is_instance_valid(cue_ball):
-		print("CPU shot cancelled - no cue ball")
-		return
-	
-	if game_state != GameState.PLAYING:
-		print("CPU shot cancelled - game not active")
-		return
-	
-	if game_paused:
-		print("CPU shot cancelled - game is paused")
+	if not can_take_shot():
+		print("CPU shot cancelled - game conditions not met")
 		return
 	
 	# Trigger pre-shot dialogue for adventure mode
@@ -989,9 +1260,6 @@ func cpu_take_shot():
 		print("CPU shot cancelled after animation - game state changed")
 		return
 	
-	# Play break sound based on power
-	play_break_sound(power)
-	
 	# Final check before applying impulse
 	if game_state != GameState.PLAYING or not cue_ball or not is_instance_valid(cue_ball):
 		print("CPU shot cancelled before impulse - game state changed")
@@ -1000,6 +1268,9 @@ func cpu_take_shot():
 	# Track that player 2/CPU took this shot
 	last_shot_by_player = 2
 	balls_pocketed_this_turn = false  # Reset ball pocketing flag for CPU shot
+	
+	# Play dampened cue stick hit sound
+	play_cue_hit_sound(power)
 	
 	# Apply the shot
 	cue_ball.apply_central_impulse(direction * power)
@@ -1045,7 +1316,7 @@ func ensure_balls_stationary():
 		wait_time += check_interval
 		
 		# Check if game is still playing (might have ended during wait)
-		if game_state != GameState.PLAYING:
+		if not is_game_active():
 			print("Game ended during ball stationary check")
 			return
 		
@@ -1075,7 +1346,7 @@ func wait_for_balls_to_stop():
 		wait_time += check_interval
 		
 		# Check if game is still playing (might have ended during wait)
-		if game_state != GameState.PLAYING:
+		if not is_game_active():
 			print("Game ended during ball stop check")
 			return
 		
@@ -1427,92 +1698,158 @@ func calculate_pocket_shot(cue_pos: Vector2, ball_pos: Vector2, target_ball: Rig
 # Audio functions
 func play_break_sound(power: float):
 	if not sfx_player:
+		print("ERROR: sfx_player is null!")
 		return
 	
 	# Calculate power percentage (assuming max power is 2500.0)
 	var max_power = 2500.0
 	var power_percentage = (power / max_power) * 100.0
 	
-	print("Playing break sound for power: ", int(power_percentage), "%")
+	print("Playing break sound for power: ", int(power_percentage), "% - SFX Volume: ", AudioServer.get_bus_volume_db(sfx_bus), "db")
 	
 	# Play big break sound for > 50% power, small break sound for <= 50%
 	if power_percentage > 50.0:
 		if break_big_sound:
+			print("Playing big break sound")
 			sfx_player.stream = break_big_sound
-			sfx_player.play()
+			# Ensure the sound doesn't loop and starts from beginning
+			if sfx_player.stream is AudioStreamMP3:
+				sfx_player.stream.loop = false
+			sfx_player.play(0.0)  # Play from position 0.0 (start)
+		else:
+			print("ERROR: break_big_sound is null!")
 	else:
 		if break_small_sound:
+			print("Playing small break sound")
 			sfx_player.stream = break_small_sound
-			sfx_player.play()
+			# Ensure the sound doesn't loop and starts from beginning
+			if sfx_player.stream is AudioStreamMP3:
+				sfx_player.stream.loop = false
+			sfx_player.play(0.0)  # Play from position 0.0 (start)
+		else:
+			print("ERROR: break_small_sound is null!")
+
+func initialize_audio():
+	"""Initialize audio on first user interaction to comply with HTML5 AudioContext policies"""
+	if audio_initialized:
+		return
+	
+	audio_initialized = true
+	
+	# Start background music
+	if music_player and is_instance_valid(music_player):
+		start_background_music()
+
+func load_settings():
+	"""Load settings from user data file"""
+	print("Loading settings from: ", settings_file_path)
+	game_config = ConfigFile.new()
+	var err = game_config.load(settings_file_path)
+	
+	if err == OK:
+		# Load audio settings
+		var music_volume = game_config.get_value("audio", "music_volume", -20.0)
+		var sfx_volume = game_config.get_value("audio", "sfx_volume", -5.0)
+		var cpu_text_speed = game_config.get_value("gameplay", "cpu_text_speed", 1.0)
+		var adventure_difficulty = game_config.get_value("gameplay", "adventure_difficulty", "medium")
+		
+		print("Loaded settings - Music: ", music_volume, " SFX: ", sfx_volume)
+		
+		# Apply loaded settings directly (without triggering save_settings)
+		AudioServer.set_bus_volume_db(music_bus, music_volume)
+		AudioServer.set_bus_volume_db(sfx_bus, sfx_volume)
+		self.cpu_text_speed = clamp(cpu_text_speed, 0.25, 3.0)
+		if adventure_difficulty in ["low", "medium", "high", "auto"]:
+			self.adventure_difficulty = adventure_difficulty
+		
+		print("Settings loaded and applied successfully")
+	else:
+		# First time or error loading, use defaults
+		print("Using default settings (first run or load error)")
+		# Apply defaults directly without triggering save
+		AudioServer.set_bus_volume_db(music_bus, -20.0)
+		AudioServer.set_bus_volume_db(sfx_bus, -5.0)
+		self.cpu_text_speed = 1.0
+		self.adventure_difficulty = "medium"
+		save_settings()  # Create initial settings file
+
+func save_settings():
+	"""Save current settings to user data file"""
+	if not game_config:
+		game_config = ConfigFile.new()
+	
+	var music_vol = AudioServer.get_bus_volume_db(music_bus)
+	var sfx_vol = AudioServer.get_bus_volume_db(sfx_bus)
+	
+	# Save current audio settings
+	game_config.set_value("audio", "music_volume", music_vol)
+	game_config.set_value("audio", "sfx_volume", sfx_vol)
+	game_config.set_value("gameplay", "cpu_text_speed", get_cpu_text_speed())
+	game_config.set_value("gameplay", "adventure_difficulty", get_adventure_difficulty())
+	
+	# Save to file
+	var err = game_config.save(settings_file_path)
+	if err == OK:
+		print("Settings saved successfully - Music: ", music_vol, " SFX: ", sfx_vol)
+	else:
+		print("Error saving settings: ", err)
 
 func start_background_music():
-	if not music_player:
+	if not music_player or not menu_music_stream:
 		return
 	
-	var music_stream = load("res://assets/audio/startgame.mp3")
-	if music_stream:
-		music_player.stream = music_stream
-		# Set the music to loop
-		if music_stream is AudioStreamMP3:
-			music_stream.loop = true
-		music_player.play()
-		print("Started menu background music: startgame.mp3 at -12db")
+	music_player.stream = menu_music_stream
+	music_player.play()
 
 func switch_to_game_music():
-	if not music_player:
+	if not music_player or not game_music_stream:
 		return
 	
-	var music_stream = load("res://assets/audio/startgame_loop.mp3")
-	if music_stream:
-		music_player.stream = music_stream
-		# Set the music to loop
-		if music_stream is AudioStreamMP3:
-			music_stream.loop = true
-		music_player.play()
-		print("Switched to game background music: startgame_loop.mp3")
+	music_player.stream = game_music_stream
+	music_player.play()
 
 func switch_to_menu_music():
-	if not music_player:
+	if not music_player or not menu_music_stream:
 		return
 	
-	var music_stream = load("res://assets/audio/startgame.mp3")
-	if music_stream:
-		music_player.stream = music_stream
-		# Set the music to loop
-		if music_stream is AudioStreamMP3:
-			music_stream.loop = true
-		music_player.play()
-		print("Switched to menu background music: startgame.mp3")
+	music_player.stream = menu_music_stream
+	music_player.play()
 
 func switch_to_story_music():
 	if not music_player:
 		return
 	
-	var music_file = ""
+	var music_stream: AudioStream
+	
 	# Use different music based on story phase
 	if cpu_personality_phase <= 2:
-		music_file = "res://assets/audio/startgame_loop.mp3"  # Normal game music for early phases
+		music_stream = game_music_stream  # Normal game music for early phases
 	else:
-		music_file = "res://assets/audio/darkmidnight.mp3"    # Dark music for later phases
+		music_stream = story_music_stream  # Dark music for later phases
 	
-	var music_stream = load(music_file)
 	if music_stream:
 		music_player.stream = music_stream
-		# Set the music to loop
-		if music_stream is AudioStreamMP3:
-			music_stream.loop = true
 		music_player.play()
-		print("Switched to story music: ", music_file.get_file())
 
 func play_background_music(music_file: String):
 	if not music_player:
 		return
 	
-	var music_stream = load("res://assets/audio/" + music_file)
+	# Map to preloaded streams based on filename
+	var music_stream: AudioStream
+	match music_file:
+		"startgame.mp3":
+			music_stream = menu_music_stream
+		"startgame_loop.mp3":
+			music_stream = game_music_stream
+		"darkmidnight.mp3":
+			music_stream = story_music_stream
+		_:
+			music_stream = load("res://assets/audio/" + music_file)
+	
 	if music_stream:
 		music_player.stream = music_stream
 		music_player.play()
-		print("Playing background music: ", music_file)
 
 func stop_background_music():
 	if music_player:
@@ -1520,15 +1857,18 @@ func stop_background_music():
 
 func set_music_volume(volume_db: float):
 	AudioServer.set_bus_volume_db(music_bus, volume_db)
+	save_settings()  # Save settings when volume changes
 
 func set_sfx_volume(volume_db: float):
 	AudioServer.set_bus_volume_db(sfx_bus, volume_db)
+	save_settings()  # Save settings when volume changes
 
 func get_cpu_text_speed() -> float:
 	return cpu_text_speed
 
 func set_cpu_text_speed(speed: float):
 	cpu_text_speed = clamp(speed, 0.25, 3.0)  # Limit range from 4x faster to 3x slower
+	save_settings()  # Save settings when text speed changes
 
 func get_adventure_difficulty() -> String:
 	return adventure_difficulty
@@ -1536,6 +1876,7 @@ func get_adventure_difficulty() -> String:
 func set_adventure_difficulty(difficulty: String):
 	if difficulty in ["low", "medium", "high", "auto"]:
 		adventure_difficulty = difficulty
+		save_settings()  # Save settings when difficulty changes
 
 func set_game_paused(paused: bool):
 	game_paused = paused
@@ -1605,7 +1946,7 @@ func start_ball_monitoring():
 	add_child(monitor_timer)
 
 func _check_ball_positions():
-	if game_state != GameState.PLAYING or game_paused:
+	if not is_game_active():
 		return
 	
 	# Define table boundaries (adjust these values based on your table size)

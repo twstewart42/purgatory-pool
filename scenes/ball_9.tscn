@@ -1,10 +1,8 @@
-[gd_scene load_steps=10 format=3 uid="uid://bj72mybtbt7ry"]
+[gd_scene load_steps=8 format=3 uid="uid://bj72mybtbt7ry"]
 
 [ext_resource type="Script" uid="uid://viobodrcl8ty" path="res://scripts/ball.gd" id="1_ball"]
 [ext_resource type="PhysicsMaterial" uid="uid://kr3p2ql81l33" path="res://assets/materials/ball_physics_material.tres" id="1_ci3tx"]
-[ext_resource type="Texture2D" uid="uid://c2uy6r7q5axm6" path="res://assets/sprites/ball_9.svg" id="2_ci3tx"]
 [ext_resource type="Texture2D" uid="uid://bs7ns6ppdeowe" path="res://assets/sprites/balls_sprites.png" id="2_sprites"]
-[ext_resource type="FontFile" uid="uid://cdsq1uassr8uw" path="res://assets/Fonts/PixelOperator8.ttf" id="3_87uak"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_43x1c"]
 atlas = ExtResource("2_sprites")
@@ -38,28 +36,5 @@ script = ExtResource("1_ball")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_ball9")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-visible = false
-texture = ExtResource("2_ci3tx")
-
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_c01jm")
-
-[node name="Label" type="Label" parent="."]
-visible = false
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = -11.5
-offset_right = 20.0
-offset_bottom = 11.5
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_colors/font_color = Color(0, 0, 0, 1)
-theme_override_fonts/font = ExtResource("3_87uak")
-text = "9"
-horizontal_alignment = 1
-vertical_alignment = 1

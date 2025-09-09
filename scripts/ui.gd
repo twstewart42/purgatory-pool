@@ -345,6 +345,27 @@ func show_start_menu():
 	apply_font_to_button(settings_button, 18)
 	settings_button.pressed.connect(_on_start_menu_settings)
 	menu_container.add_child(settings_button)
+	
+	var spacer5 = Control.new()
+	spacer5.custom_minimum_size = Vector2(0, 10)
+	menu_container.add_child(spacer5)
+	
+	var credits_button = Button.new()
+	credits_button.text = "Credits"
+	apply_font_to_button(credits_button, 18)
+	credits_button.pressed.connect(_on_credits_selected)
+	menu_container.add_child(credits_button)
+	
+	var spacer6 = Control.new()
+	spacer6.custom_minimum_size = Vector2(0, 10)
+	menu_container.add_child(spacer6)
+	
+	var quit_button = Button.new()
+	quit_button.text = "Quit Game"
+	quit_button.add_theme_color_override("font_color", Color.RED)
+	apply_font_to_button(quit_button, 18)
+	quit_button.pressed.connect(_on_quit_game_selected)
+	menu_container.add_child(quit_button)
 
 func _on_arcade_selected():
 	show_arcade_submenu()
@@ -356,6 +377,24 @@ func _on_adventure_selected():
 		main_overlay.queue_free()
 	
 	_start_game_with_mode(2) # ADVENTURE
+
+func _on_credits_selected():
+	# Close main menu first
+	var main_overlay = get_node_or_null("StartMenuOverlay")
+	if main_overlay:
+		main_overlay.queue_free()
+	
+	# Show credits
+	show_credits()
+
+func _on_quit_game_selected():
+	# Close main menu first
+	var main_overlay = get_node_or_null("StartMenuOverlay")
+	if main_overlay:
+		main_overlay.queue_free()
+	
+	# Quit the game
+	get_tree().quit()
 
 func _on_pvp_selected():
 	# Close arcade submenu first
@@ -431,8 +470,8 @@ func set_final_scores(player1_result: String, player2_result: String):
 			player2_points.add_theme_color_override("font_color", Color.YELLOW)
 
 func show_settings_menu():
-	# Pause the game elements (not the entire tree)
-	pause_game_elements()
+	# Don't pause game elements for settings menu - we don't want to dim music
+	# when user is adjusting volume settings
 	
 	# Create settings overlay
 	var overlay = ColorRect.new()
@@ -629,8 +668,7 @@ func _on_settings_close():
 	if overlay:
 		overlay.queue_free()
 	
-	# Resume the game
-	resume_game_elements()
+	# Don't resume game elements since we didn't pause them for settings
 
 func get_music_volume_display() -> float:
 	# Convert actual dB to display value (0-40)
@@ -651,8 +689,8 @@ func _on_cpu_text_speed_changed(value: float):
 	game.set_cpu_text_speed(value)
 
 func show_settings_menu_with_back():
-	# Pause the game elements (not the entire tree)
-	pause_game_elements()
+	# Don't pause game elements for settings menu - we don't want to dim music
+	# when user is adjusting volume settings
 	
 	# Create settings overlay
 	var overlay = ColorRect.new()
@@ -896,8 +934,8 @@ func _on_settings_back_to_start():
 	if overlay:
 		overlay.queue_free()
 	
-	# Resume the game (it will be paused again by start menu if needed)
-	resume_game_elements()
+	# Don't resume game elements since we didn't pause them for settings
+	# Show start menu again
 	
 	# Show start menu again
 	show_start_menu()
@@ -1226,12 +1264,16 @@ func resume_game_elements():
 	# Restore original music volume
 	AudioServer.set_bus_volume_db(game.music_bus, original_music_volume)
 	
-	# Re-enable cue stick if game is playing
+	# Clear the pause flag and simply re-enable the cue stick
+	game.set_game_paused(false)
+	
+	# Re-enable cue stick if game is playing (keep it simple)
 	if game.cue_stick and game.game_state == game.GameState.PLAYING:
 		game.cue_stick.set_enabled(true)
-	
-	# Clear the pause flag
-	game.set_game_paused(false)
+		print("Resumed game - Current player: ", get_current_player())
+		
+		# Check if CPU needs to resume its turn
+		game.check_and_resume_cpu_turn()
 
 # Adventure Mode Display Functions
 func show_adventure_display():
@@ -1313,3 +1355,182 @@ func update_adventure_display():
 	var is_adventure_mode = (game.game_mode == game.GameMode.ADVENTURE)
 	if adventure_container:
 		adventure_container.visible = is_adventure_mode
+
+# Credits System
+func show_credits():
+	# Create credits overlay with dark background
+	var overlay = ColorRect.new()
+	overlay.color = Color(0, 0, 0, 0.9)
+	overlay.anchors_preset = Control.PRESET_FULL_RECT
+	overlay.anchor_left = 0.0
+	overlay.anchor_top = 0.0
+	overlay.anchor_right = 1.0
+	overlay.anchor_bottom = 1.0
+	overlay.name = "CreditsOverlay"
+	add_child(overlay)
+	
+	# Create centered container manually
+	var credits_container = VBoxContainer.new()
+	credits_container.anchor_left = 0.5
+	credits_container.anchor_top = 0.5
+	credits_container.anchor_right = 0.5
+	credits_container.anchor_bottom = 0.5
+	credits_container.offset_left = -200  # Half width of container
+	credits_container.offset_top = -100   # Half height of container
+	credits_container.offset_right = 200  # Half width of container
+	credits_container.offset_bottom = 100 # Half height of container
+	overlay.add_child(credits_container)
+	
+	# Credits title
+	var title_label = Label.new()
+	title_label.text = "CREDITS"
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	apply_title_font_to_label(title_label, 48)
+	title_label.add_theme_color_override("font_color", Color.WHITE)
+	credits_container.add_child(title_label)
+	
+	# Add spacing
+	var spacer1 = Control.new()
+	spacer1.custom_minimum_size = Vector2(0, 30)
+	credits_container.add_child(spacer1)
+	
+	# Game section
+	var game_label = Label.new()
+	game_label.text = "PURGATORY POOL"
+	game_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	apply_pixel_font_to_label(game_label, 24)
+	game_label.add_theme_color_override("font_color", Color.YELLOW)
+	credits_container.add_child(game_label)
+	
+	var by_label = Label.new()
+	by_label.text = "By Stewpendous Studios"
+	by_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	apply_pixel_font_to_label(by_label, 16)
+	by_label.add_theme_color_override("font_color", Color.WHITE)
+	credits_container.add_child(by_label)
+	
+	var spacer2 = Control.new()
+	spacer2.custom_minimum_size = Vector2(0, 20)
+	credits_container.add_child(spacer2)
+	
+	# Development section
+	var dev_label = Label.new()
+	dev_label.text = "DEVELOPMENT"
+	dev_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	apply_pixel_font_to_label(dev_label, 20)
+	dev_label.add_theme_color_override("font_color", Color.YELLOW)
+	credits_container.add_child(dev_label)
+	
+	var dev_name = Label.new()
+	dev_name.text = "Stew Stunes"
+	dev_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	apply_pixel_font_to_label(dev_name, 16)
+	dev_name.add_theme_color_override("font_color", Color.WHITE)
+	credits_container.add_child(dev_name)
+	
+	var spacer3 = Control.new()
+	spacer3.custom_minimum_size = Vector2(0, 20)
+	credits_container.add_child(spacer3)
+	
+	# Audio section
+	var audio_label = Label.new()
+	audio_label.text = "AUDIO"
+	audio_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	apply_pixel_font_to_label(audio_label, 20)
+	audio_label.add_theme_color_override("font_color", Color.YELLOW)
+	credits_container.add_child(audio_label)
+	
+	var audio_name = Label.new()
+	audio_name.text = "Stew Stunes"
+	audio_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	apply_pixel_font_to_label(audio_name, 16)
+	audio_name.add_theme_color_override("font_color", Color.WHITE)
+	credits_container.add_child(audio_name)
+	
+	var spacer4 = Control.new()
+	spacer4.custom_minimum_size = Vector2(0, 20)
+	credits_container.add_child(spacer4)
+	
+	# Art section
+	var art_label = Label.new()
+	art_label.text = "ART & DESIGN"
+	art_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	apply_pixel_font_to_label(art_label, 20)
+	art_label.add_theme_color_override("font_color", Color.YELLOW)
+	credits_container.add_child(art_label)
+	
+	var art_credit = Label.new()
+	art_credit.text = "Assets from https://opengameart.org/content/8-ball-pool-assets"
+	art_credit.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	art_credit.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	apply_pixel_font_to_label(art_credit, 14)
+	art_credit.add_theme_color_override("font_color", Color.WHITE)
+	credits_container.add_child(art_credit)
+	
+	var spacer5 = Control.new()
+	spacer5.custom_minimum_size = Vector2(0, 20)
+	credits_container.add_child(spacer5)
+	
+	# Special Thanks section
+	var thanks_label = Label.new()
+	thanks_label.text = "SPECIAL THANKS"
+	thanks_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	apply_pixel_font_to_label(thanks_label, 20)
+	thanks_label.add_theme_color_override("font_color", Color.YELLOW)
+	credits_container.add_child(thanks_label)
+	
+	var thanks_text = Label.new()
+	thanks_text.text = "To Claude AI for helping code this\nin a weekend vs a month"
+	thanks_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	thanks_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	apply_pixel_font_to_label(thanks_text, 14)
+	thanks_text.add_theme_color_override("font_color", Color.WHITE)
+	credits_container.add_child(thanks_text)
+	
+	var spacer6 = Control.new()
+	spacer6.custom_minimum_size = Vector2(0, 30)
+	credits_container.add_child(spacer6)
+	
+	# Back button
+	var back_button = Button.new()
+	back_button.text = "Back to Main Menu"
+	apply_font_to_button(back_button, 20)
+	back_button.pressed.connect(_on_credits_back)
+	credits_container.add_child(back_button)
+
+func create_credits_section(section_title: String, section_content: String) -> VBoxContainer:
+	var section = VBoxContainer.new()
+	
+	# Section title
+	var title = Label.new()
+	title.text = section_title
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	apply_pixel_font_to_label(title, 24)
+	title.add_theme_color_override("font_color", Color.YELLOW)
+	section.add_child(title)
+	
+	# Small spacer
+	var spacer = Control.new()
+	spacer.custom_minimum_size = Vector2(0, 15)
+	section.add_child(spacer)
+	
+	# Section content
+	if section_content != "":
+		var content = Label.new()
+		content.text = section_content
+		content.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		content.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		apply_pixel_font_to_label(content, 16)
+		content.add_theme_color_override("font_color", Color.WHITE)
+		section.add_child(content)
+	
+	return section
+
+func _on_credits_back():
+	# Remove credits overlay
+	var overlay = get_node_or_null("CreditsOverlay")
+	if overlay:
+		overlay.queue_free()
+	
+	# Return to main menu
+	show_start_menu()
